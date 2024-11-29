@@ -1,3 +1,4 @@
+#include <Wire.h>
 #include <Arduino.h>
 #include <SPI.h>
 #include <WiFiNINA.h>
@@ -288,4 +289,3 @@ void PIDControl() {
   last_err = err;
   //Serial.println(micros()-last_pid_ts);
 }
-
