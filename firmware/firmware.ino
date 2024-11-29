@@ -12,8 +12,6 @@
 
 unsigned int localPort = 2390;
 unsigned long last_packet_ts = 0;
-
-// board pin layout
 int encoder_s_pin = 14;
 
 // NOTE this is inconsistent with schematic
@@ -25,9 +23,13 @@ int steer_fwd_pin = 10; // originally 3 -> changed to 10
 int old_steer_rev_pin = 2;
 int old_steer_fwd_pin = 3;
 
-int drive_rev_pin = 5;
-int drive_fwd_pin = 6;
 
+const int DRIVE_AIN1 = 4;  
+const int DRIVE_AIN2 = 5;
+const int DRIVE_PWMA = 6;
+const int DRIVE_STBY = 7;
+//int drive_rev_pin = 5;
+//int drive_fwd_pin = 6;
 // electronics calibration
 // [-1,1]
 volatile float throttle = 0.0;
@@ -62,14 +64,21 @@ void setup() {
 
 #endif
   Serial.begin(115200);
+
+  pinMode(DRIVE_AIN1, OUTPUT);
+  pinMode(DRIVE_AIN2, OUTPUT);
+  pinMode(DRIVE_PWMA, OUTPUT);
+  pinMode(DRIVE_STBY, OUTPUT);
+  digitalWrite(DRIVE_STBY, HIGH);
+
   pinMode(encoder_s_pin, INPUT);
   // to be compatible with old board where pin 2,3 are connected to output
   pinMode(old_steer_rev_pin, INPUT);
   pinMode(old_steer_fwd_pin, INPUT);
   pinMode(steer_rev_pin, OUTPUT);
   pinMode(steer_fwd_pin, OUTPUT);
-  pinMode(drive_rev_pin, OUTPUT);
-  pinMode(drive_fwd_pin, OUTPUT);
+  // pinMode(drive_rev_pin, OUTPUT);
+  // pinMode(drive_fwd_pin, OUTPUT);
   led.init();
   led.off();
   setupWifi();
@@ -162,8 +171,11 @@ void actuateThrottle() {
   if (abs(throttle) < throttle_deadzone) {
     // analogWrite(drive_fwd_pin, 0);
     // analogWrite(drive_rev_pin, 0);
-    PWM::set(drive_fwd_pin, 0.0);
-    PWM::set(drive_rev_pin, 0.0);
+    // PWM::set(drive_fwd_pin, 0.0);
+    // PWM::set(drive_rev_pin, 0.0);
+    analogWrite(DRIVE_PWMA, 0);
+    digitalWrite(DRIVE_AIN1, LOW);
+    digitalWrite(DRIVE_AIN2, LOW);
   } else {
     /*
     int throttle_value = (int)fmap(throttle, -1.0, 1.0, -255.0, 255.0);
@@ -176,12 +188,20 @@ void actuateThrottle() {
       analogWrite(drive_fwd_pin, 0);
     }
     */
+    int pwmValue = abs(throttle) * 255;
+    pwmValue = constrain(pwmValue, 0, 255);
     if (throttle > 0) {
-      PWM::set(drive_fwd_pin, throttle);
-      PWM::set(drive_rev_pin, 0);
+      // PWM::set(drive_fwd_pin, throttle);
+      // PWM::set(drive_rev_pin, 0);
+      digitalWrite(DRIVE_AIN1, HIGH);
+      digitalWrite(DRIVE_AIN2, LOW);
+      analogWrite(DRIVE_PWMA, pwmValue);
     } else {
-      PWM::set(drive_rev_pin, -throttle);
-      PWM::set(drive_fwd_pin, 0);
+      // PWM::set(drive_rev_pin, -throttle);
+      // PWM::set(drive_fwd_pin, 0);
+      digitalWrite(DRIVE_AIN1, LOW);
+      digitalWrite(DRIVE_AIN2, HIGH);
+      analogWrite(DRIVE_PWMA, pwmValue);
     }
   }
 }
@@ -199,8 +219,11 @@ void PIDControl() {
     // analogWrite(drive_rev_pin, 0);
     // analogWrite(steer_fwd_pin, 255);
     // analogWrite(steer_rev_pin, 255);
-    PWM::set(drive_fwd_pin, 0);
-    PWM::set(drive_rev_pin, 0);
+    // PWM::set(drive_fwd_pin, 0);
+    // PWM::set(drive_rev_pin, 0);
+    analogWrite(DRIVE_PWMA, 0);
+    digitalWrite(DRIVE_AIN1, LOW);
+    digitalWrite(DRIVE_AIN2, LOW);
     PWM::set(steer_fwd_pin, 0);
     PWM::set(steer_rev_pin, 0);
     return;
@@ -265,3 +288,4 @@ void PIDControl() {
   last_err = err;
   //Serial.println(micros()-last_pid_ts);
 }
+
