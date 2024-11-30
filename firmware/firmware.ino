@@ -3,6 +3,7 @@
 #include <SPI.h>
 #include <WiFiNINA.h>
 #include <WiFiUdp.h>
+#include <Servo.h>
 #define PI 3.14159265
 
 #include "isr_timer.h"
@@ -16,14 +17,15 @@ unsigned long last_packet_ts = 0;
 int encoder_s_pin = 14;
 
 // NOTE this is inconsistent with schematic
-// left
-int steer_rev_pin = 9; // originally 2 -> changed to 9
-// right
-int steer_fwd_pin = 10; // originally 3 -> changed to 10
+// // left
+// int steer_rev_pin = 9; // originally 2 -> changed to 9
+// // right
+// int steer_fwd_pin = 10; // originally 3 -> changed to 10
 
-int old_steer_rev_pin = 2;
-int old_steer_fwd_pin = 3;
+// int old_steer_rev_pin = 2;
+// int old_steer_fwd_pin = 3;
 
+Servo steerServo;
 
 const int DRIVE_AIN1 = 4;  
 const int DRIVE_AIN2 = 5;
@@ -38,10 +40,14 @@ volatile float throttle = 0.0;
 volatile float steering = 0.0;
 float throttle_deadzone = 0.05;
 
-float full_left_angle_rad = 26.1 / 180.0 * PI;
-float full_right_angle_rad = -26.1 / 180.0 * PI;
-float full_left_encoder_value = 630.0;
-float full_right_encoder_value = 410.0;
+// float full_left_angle_rad = 26.1 / 180.0 * PI;
+// float full_right_angle_rad = -26.1 / 180.0 * PI;
+// float full_left_encoder_value = 630.0;
+// float full_right_encoder_value = 410.0;
+float full_left_angle = 116.1;   
+float full_right_angle = 63.9;  
+float center_angle = 90;         // mid point
+
 float steering_deadzone_rad = 1.0 / 180.0 * PI;
 volatile unsigned long last_pid_ts = 0;
 float last_err = 0.0;
@@ -66,18 +72,22 @@ void setup() {
 #endif
   Serial.begin(115200);
 
+  // Enable motor driver
   pinMode(DRIVE_AIN1, OUTPUT);
   pinMode(DRIVE_AIN2, OUTPUT);
   pinMode(DRIVE_PWMA, OUTPUT);
   pinMode(DRIVE_STBY, OUTPUT);
   digitalWrite(DRIVE_STBY, HIGH);
+  //Enable servo, set into middle position
+  steerServo.attach(10);  
+  steerServo.write(center_angle);  
 
   pinMode(encoder_s_pin, INPUT);
   // to be compatible with old board where pin 2,3 are connected to output
-  pinMode(old_steer_rev_pin, INPUT);
-  pinMode(old_steer_fwd_pin, INPUT);
-  pinMode(steer_rev_pin, OUTPUT);
-  pinMode(steer_fwd_pin, OUTPUT);
+  // pinMode(old_steer_rev_pin, INPUT);
+  // pinMode(old_steer_fwd_pin, INPUT);
+  // pinMode(steer_rev_pin, OUTPUT);
+  // pinMode(steer_fwd_pin, OUTPUT);
   // pinMode(drive_rev_pin, OUTPUT);
   // pinMode(drive_fwd_pin, OUTPUT);
   led.init();
@@ -222,39 +232,53 @@ void PIDControl() {
     // analogWrite(steer_rev_pin, 255);
     // PWM::set(drive_fwd_pin, 0);
     // PWM::set(drive_rev_pin, 0);
+    // disable motor & servo
     analogWrite(DRIVE_PWMA, 0);
     digitalWrite(DRIVE_AIN1, LOW);
     digitalWrite(DRIVE_AIN2, LOW);
-    PWM::set(steer_fwd_pin, 0);
-    PWM::set(steer_rev_pin, 0);
+    steerServo.write(center_angle);
+
     return;
   }
 
   actuateThrottle();
+
+  float steering_angle = (steering * 180.0 / PI);
+  float current_angle = steerServo.read();
   // Steering PID control
-  float raw_encoder = analogRead(encoder_s_pin);
-  steering_measured =
-      fmap(raw_encoder, full_left_encoder_value, full_right_encoder_value,
-           full_left_angle_rad, full_right_angle_rad);
-  steering_measured =
-      constrain(steering_measured, full_right_angle_rad, full_left_angle_rad);
+  // float raw_encoder = analogRead(encoder_s_pin);
+  // steering_measured =
+  //     fmap(raw_encoder, full_left_encoder_value, full_right_encoder_value,
+  //          full_left_angle_rad, full_right_angle_rad);
+  // steering_measured =
+  //     constrain(steering_measured, full_right_angle_rad, full_left_angle_rad);
 
   // error in radians
-  float err = steering - steering_measured;
-  steering_requested = steering;
+  // float err = steering - steering_measured;
+  float err = steering_angle - (current_angle - center_angle); 
+  // steering_requested = steering;
 
   // filter
 
-  float freq = 10.0;
-  float alfa = (2 * PI * dt * freq) / (2 * PI * dt * freq + 1.0);
-  err = (1.0 - alfa) * last_err + alfa * err;
+  // float freq = 10.0;
+  // float alfa = (2 * PI * dt * freq) / (2 * PI * dt * freq + 1.0);
+  // err = (1.0 - alfa) * last_err + alfa * err;
+  // steering_integral += err * dt;
+  // steering_integral = constrain(steering_integral, -steering_integral_limit,
+  //                               steering_integral_limit);
   steering_integral += err * dt;
-  steering_integral = constrain(steering_integral, -steering_integral_limit,
-                                steering_integral_limit);
+  steering_integral = constrain(steering_integral, -steering_integral_limit, steering_integral_limit);
   // PID
-  float output = err * param_steering_P + steering_integral * param_steering_I +
-                 (err - last_err) / dt * param_steering_D;
+  // float output = err * param_steering_P + steering_integral * param_steering_I +
+  //                (err - last_err) / dt * param_steering_D;
+  float output = err * param_steering_P + 
+                  steering_integral * param_steering_I +
+                  (err - last_err) / dt * param_steering_D;
 
+  float target_angle = center_angle + output;
+  target_angle = constrain(target_angle, full_right_angle, full_left_angle);
+
+  steerServo.write(target_angle);
   /*
   Serial.print("err: ");
   Serial.print(err);
@@ -269,22 +293,22 @@ void PIDControl() {
   Serial.println(micros()-last_pid_ts);
   */
 
-  if (abs(err) < steering_deadzone_rad) {
-    // analogWrite(steer_fwd_pin, 0);
-    // analogWrite(steer_rev_pin, 0);
-    PWM::set(steer_fwd_pin, 0);
-    PWM::set(steer_rev_pin, 0);
-  } else if (output > 0) {
-    // analogWrite(steer_rev_pin, constrain(err * param_steering_P, 0, 255));
-    // analogWrite(steer_fwd_pin, 0);
-    PWM::set(steer_rev_pin, output);
-    PWM::set(steer_fwd_pin, 0);
-  } else if (output < 0) {
-    // analogWrite(steer_fwd_pin, constrain(-err * param_steering_P, 0, 255));
-    // analogWrite(steer_rev_pin, 0);
-    PWM::set(steer_fwd_pin, -output);
-    PWM::set(steer_rev_pin, 0);
-  }
+  // if (abs(err) < steering_deadzone_rad) {
+  //   // analogWrite(steer_fwd_pin, 0);
+  //   // analogWrite(steer_rev_pin, 0);
+  //   PWM::set(steer_fwd_pin, 0);
+  //   PWM::set(steer_rev_pin, 0);
+  // } else if (output > 0) {
+  //   // analogWrite(steer_rev_pin, constrain(err * param_steering_P, 0, 255));
+  //   // analogWrite(steer_fwd_pin, 0);
+  //   PWM::set(steer_rev_pin, output);
+  //   PWM::set(steer_fwd_pin, 0);
+  // } else if (output < 0) {
+  //   // analogWrite(steer_fwd_pin, constrain(-err * param_steering_P, 0, 255));
+  //   // analogWrite(steer_rev_pin, 0);
+  //   PWM::set(steer_fwd_pin, -output);
+  //   PWM::set(steer_rev_pin, 0);
+  // }
 
   last_err = err;
   //Serial.println(micros()-last_pid_ts);
