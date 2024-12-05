@@ -1,10 +1,23 @@
-
+#include <WiFiNINA.h>
+#include <WiFiUdp.h>
 #include "network.h"
 // network setting
 char ssid[] = "TP-LINK_F4D4";
 char pass[] = "15291356";
 int status = WL_IDLE_STATUS;
 WiFiUDP Udp;
+
+
+////////////
+
+//unsigned int localPort = 125;  // Local port to listen on
+IPAddress remoteIp(192, 168, 10, 102);  // Remote IP address (target device IP)                  CHANGE
+unsigned int remotePort=622;  // Remote port (where the target device is listening)         CHANGE 
+
+
+////////////
+
+
 
 void printWifiData() {
   // print your board's IP address:

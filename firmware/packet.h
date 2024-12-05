@@ -19,6 +19,8 @@ extern float param_steering_P;
 extern float param_steering_I;
 extern float param_steering_D;
 
+extern uint16_t dist1, dist2, dist3, dist4;
+
 typedef struct {
   uint32_t seq_no;
   uint32_t ts;
@@ -36,8 +38,11 @@ typedef struct {
     };
     // type 2.0, Sensor Update
     struct {
-      float steering_requested; // in rad
-      float steering_measured;  // in rad
+      uint16_t dist1;
+      uint16_t dist2; 
+      uint16_t dist3; 
+      uint16_t dist4;   // in rad
+        // in rad
     };
     // type 3.0, Parameter Packet
     struct {

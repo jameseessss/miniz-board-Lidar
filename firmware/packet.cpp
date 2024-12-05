@@ -101,8 +101,10 @@ void buildPingResponsePacket() {
 void buildSensorResponsePacket() {
   buildHeader(2, 0);
   Packet *p = (Packet *)out_buffer;
-  p->steering_requested = steering_requested;
-  p->steering_measured = steering_measured;
+  p->dist1 = dist1;
+  p->dist2 = dist2;
+  p->dist3 = dist3;
+  p->dist4 = dist4;
 }
 
 void buildHeader(uint8_t type, uint8_t subtype) {
