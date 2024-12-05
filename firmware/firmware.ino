@@ -1,5 +1,3 @@
-#include <FreeRTOS_SAMD21.h>
-#include <semphr.h>
 #include <Wire.h>
 #include <Arduino.h>
 #include <SPI.h>
@@ -7,6 +5,7 @@
 #include <WiFiUdp.h>
 #include <Servo.h>
 #define PI 3.14159265
+
 #include "isr_timer.h"
 #include "network.h"
 #include "packet.h"
@@ -16,9 +15,9 @@
 
 
 ////////////////////
- uint16_t dist1, dist2, dist3, dist4;
+uint16_t dist1, dist2, dist3, dist4;
 
-SemaphoreHandle_t xMutex;
+
 class TFMiniS {
 private:
     uint8_t addr;
@@ -133,8 +132,6 @@ long servo_ts = 0;
 bool flag_failsafe = false;
 StatusLed led;
 
-int i ;
-
 // the setup function runs once when you press reset or power the board
 void setup() {
 #ifdef _SAMD21_ADC_COMPONENT_
@@ -182,20 +179,7 @@ void setup() {
 
   ///////////////////
 
-  xMutex = xSemaphoreCreateMutex();
-    if (xMutex == NULL) {
-        Serial.println("Mutex creation failed");
-        while (1);
-    }
 
-  xTaskCreate(
-        SensorTask,          // 任务函数
-        "Sensor Task",       // 任务名称
-        128,                 // 堆栈大小（字节）
-        NULL,                // 任务参数
-        2,                   // 优先级（数字越大优先级越高）
-        NULL                 // 任务句柄
-    );
 
   // Enable motor driver
   pinMode(DRIVE_AIN1, OUTPUT);
@@ -248,9 +232,82 @@ void setupWifi() {
 unsigned long periodic_print_1hz_ts = 0;
 
 void loop() {
+  
+  
+  
+  static unsigned long lastRead = 0;
+    
+    if(millis() - lastRead >= 1) { ///////////////////////////////////////////////////////////////////////////////   send/1s, need to change from 1000 to 10 for 100hz
+        
+        
+        // Serial.println("\n--- Reading Sensors ---");
 
-//////////////////////////
+        if(sensor1.readDistance(dist1)) {
+            // Serial.print("Front Distance=");
+            // Serial.print(dist1);
+            // Serial.println(" cm");
+        } else {
+            Serial.println("Failed to read sensor 0x11");
+        }
 
+        if(sensor2.readDistance(dist2)) {
+            // Serial.print("Left Distance=");
+            // Serial.print(dist2);
+            // Serial.println(" cm");
+        } else {
+            Serial.println("Failed to read sensor 0x12");
+        }
+
+        if(sensor3.readDistance(dist3)) {
+            // Serial.print("Back Distance=");
+            // Serial.print(dist3);
+            // Serial.println(" cm");
+        } else {
+            Serial.println("Failed to read sensor 0x13");
+        }
+
+        if(sensor4.readDistance(dist4)) {
+            // Serial.print("Right Distance=");
+            // Serial.print(dist4);
+            // Serial.println(" cm");
+        } else {
+            Serial.println("Failed to read sensor 0x14");
+        }
+
+        lastRead = millis();
+    }
+
+//////////////////////////////////////////////////////////////////////////////////////
+        // Format the data into a single message string
+    String message = "Front: "+ String(dist1) + " Left: " + String(dist2) + " Back: " + String(dist3) + " Right: " + String(dist4);
+
+    // Send the formatted message over UDP
+    Udp.beginPacket(remoteIp, remotePort);  // Start a packet to the remote IP and port
+    Udp.print(message);  // Send the message
+    Udp.endPacket();  // End the UDP packet
+
+
+    String message2 = "Message sent over UDP"; //+ String(dist1) + " Left: " + String(dist2) + " Back: " + String(dist3) + " Right: " + String(dist4);
+    // Print to Serial Monitor to confirm sending
+    Serial.println( message2);
+
+    // Wait for a short interval before sending the next message
+    /////////////////////////////////////////////////////////////////////////////////////////////////////// send/1s, need to change from 1000 to 10 for 100hz
+
+
+//////////////////////////////////////////////////////////////////////////////////////
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
   
 /////////
   
@@ -258,92 +315,37 @@ void loop() {
   //  Serial.println(millis() - loop_time);
   //  loop_time = millis();
   int packet_size = Udp.parsePacket();
-  Serial.println(packet_size);
+
   // process incoming packet
   if (packet_size) {
+    if (packet_size != PACKET_SIZE) {
+      Serial.println("err packet size");
+    }
 
-     
-    
-
+    // Serial.print("From ");
+    //IPAddress remoteIp = Udp.remoteIP();
     int len = Udp.read(in_buffer, PACKET_SIZE);
     if (len != PACKET_SIZE) {
-      Serial.print("Error reading packet. Expected: ");
-      Serial.print(PACKET_SIZE);
-      Serial.print(" Got: ");
+      Serial.print("err reading packet size ");
       Serial.println(len);
-    } else {
-      parsePacket();
     }
-    
+    // Serial.println("parsing packet");
+    parsePacket();
     last_packet_ts = millis();
     flag_failsafe = false;
     led.on();
+    // response is handled by packet parser
   }
 
   if (millis() - last_packet_ts > 100 && !flag_failsafe) {
     throttle = 0;
     steering = 0;
     flag_failsafe = true;
+    // Serial.print(millis());
+    // Serial.println(" failsafe");
     led.blink();
   }
-
   PIDControl();
-  //  static unsigned long lastRead = 0;
-    
-    // if(millis() - lastRead >= 10) { ///////////////////////////////////////////////////////////////////////////////   send/1s, need to change from 1000 to 10 for 100hz
-    //     Serial.println(millis());
-        
-    //     // Serial.println("\n--- Reading Sensors ---");
-
-    //     if(sensor1.readDistance(dist1)) {
-    //         // Serial.print("Front Distance=");
-    //         // Serial.print(dist1);
-    //         // Serial.println(" cm");
-    //     } else {
-    //         Serial.println("Failed to read sensor 0x11");
-    //     }
-
-    //     if(sensor2.readDistance(dist2)) {
-    //         // Serial.print("Left Distance=");
-    //         // Serial.print(dist2);
-    //         // Serial.println(" cm");
-    //     } else {
-    //         Serial.println("Failed to read sensor 0x12");
-    //     }
-
-    //     if(sensor3.readDistance(dist3)) {
-    //         // Serial.print("Back Distance=");
-    //         // Serial.print(dist3);
-    //         // Serial.println(" cm");
-    //     } else {
-    //         Serial.println("Failed to read sensor 0x13");
-    //     }
-
-    //     if(sensor4.readDistance(dist4)) {
-    //         // Serial.print("Right Distance=");
-    //         // Serial.print(dist4);
-    //         // Serial.println(" cm");
-    //     } else {
-    //         Serial.println("Failed to read sensor 0x14");
-    //     }
-    //     Serial.println(millis());
-        
-
-    //     lastRead = millis();
-    // }
-
-//////////////////////////////////////////////////////////////////////////////////////
-        // Format the data into a single message string
-    
-
-    i = i + 1;
-    String message2 = "Message sent over UDP " + String(i); //+ String(dist1) + " Left: " + String(dist2) + " Back: " + String(dist3) + " Right: " + String(dist4);
-    // Print to Serial Monitor to confirm sending
-    Serial.println( message2);
-
-    // Wait for a short interval before sending the next message
-    /////////////////////////////////////////////////////////////////////////////////////////////////////// send/1s, need to change from 1000 to 10 for 100hz
-
 }
 
 float fmap(float x, float in_min, float in_max, float out_min, float out_max) {
@@ -376,18 +378,17 @@ void actuateThrottle() {
 
 // for steering rack
 void PIDControl() {
-  if (xSemaphoreTake(xMutex, portMAX_DELAY) == pdTRUE) {
-    float dt = (float)(micros() - last_pid_ts) / 1e6;
-    last_pid_ts = micros();
+  float dt = (float)(micros() - last_pid_ts) / 1e6;
+  last_pid_ts = micros();
 
-    if (flag_failsafe) {
+  if (flag_failsafe) {
     analogWrite(DRIVE_PWMA, 0);
     digitalWrite(DRIVE_AIN1, LOW);
     digitalWrite(DRIVE_AIN2, LOW);
     steerServo.write(center_angle);
-    xSemaphoreGive(xMutex);
+
     return;
-    }
+  }
 
   actuateThrottle();
 
@@ -403,34 +404,8 @@ void PIDControl() {
   servo_ts = millis();
   }
   Serial.println(target_angle);
-  xSemaphoreGive(xMutex);
-  }
+  
 }
 float steeringMap(float steering) {
   return fmap(steering, -1.0, 1.0, full_right_angle, full_left_angle);
 }
-
-void SensorTask(void *pvParameters) {
-    for (;;) {
-        // 获取互斥锁
-        if (xSemaphoreTake(xMutex, portMAX_DELAY) == pdTRUE) {
-            // 读取传感器数据
-            if (sensor1.readDistance(dist1) &&
-                sensor2.readDistance(dist2) &&
-                sensor3.readDistance(dist3) &&
-                sensor4.readDistance(dist4)) {
-                // 构建并发送数据包
-                buildSensorResponsePacket();
-                sendResponsePacket();
-            } else {
-                Serial.println("Failed to read one or more sensors");
-            }
-            // 释放互斥锁
-            xSemaphoreGive(xMutex);
-        }
-
-        // 任务延迟，实现 100Hz 的频率
-        vTaskDelay(pdMS_TO_TICKS(10)); // 10ms 延迟
-    }
-}
-
