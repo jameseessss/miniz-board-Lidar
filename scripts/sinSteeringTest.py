@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 
 class SinSteeringTest(PrintObject):
     def __init__(self,T):
-        self.car = Offboard("192.168.10.11",2390)
+        self.car = Offboard("192.168.10.102",2390)
         sleep(0.1)
         self.T = T
         return

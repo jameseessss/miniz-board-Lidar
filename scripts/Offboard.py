@@ -66,8 +66,8 @@ class OffboardPacket(PrintObject):
 
         # sensor update
         if (self.type == 2):
-            self.steering_requested,self.steering_measured = unpack('ff',packet[12:20])
-            #self.print_info('sensor update',self.steering_requested, self.steering_measured)
+            self.lidar = unpack('HHHH',packet[12:20])
+            #self.print_info('sensor update',self.lidar)
 
         # parameter
         if (self.type == 3):
@@ -125,8 +125,8 @@ class Offboard(PrintObject):
 
     def initLog(self):
         self.log_t_vec = []
-        self.steering_requested_vec = []
-        self.steering_measured_vec = []
+        self.lidar_vec = []
+        self.lidar = (0,0,0,0)
 
 
     # one-time process
@@ -208,20 +208,19 @@ class Offboard(PrintObject):
     def sendPacket(self,packet):
         sent_size = self.sock.sendto(packet.packet, (self.car_ip, self.car_port))
         self.last_sent_ts = packet.ts
-        self.print_info(f'sent {sent_size} to Arduino')
+        #self.print_info(f'sent {sent_size} to Arduino')
 
     def parseResponse(self,data):
         packet = OffboardPacket()
         packet.packet = data
         packet_type = packet.parsePacket()
-        self.print_info(f'packet_type = {packet_type}')
+        #self.print_info(f'packet_type = {packet_type}')
         self.last_response_ts = int(clock_gettime_ns(CLOCK_REALTIME) / 1000) % 4294967295
 
         # sensor update
         if (packet_type == 2):
             self.log_t_vec.append(time())
-            self.steering_requested_vec.append(packet.steering_requested)
-            self.steering_measured_vec.append(packet.steering_measured)
+            self.lidar_vec.append(packet.lidar)
             
         return packet
 

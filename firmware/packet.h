@@ -38,11 +38,10 @@ typedef struct {
     };
     // type 2.0, Sensor Update
     struct {
-      uint16_t dist1;
-      uint16_t dist2; 
-      uint16_t dist3; 
-      uint16_t dist4;   // in rad
-        // in rad
+      uint16_t dist1; // front unit:cm
+      uint16_t dist2; // left
+      uint16_t dist3; // rear
+      uint16_t dist4; // right
     };
     // type 3.0, Parameter Packet
     struct {

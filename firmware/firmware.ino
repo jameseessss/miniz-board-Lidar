@@ -12,19 +12,13 @@
 #include "pwm.h"
 #include "status_light.h"
 
-
-
-////////////////////
 uint16_t dist1, dist2, dist3, dist4;
-
 
 class TFMiniS {
 private:
     uint8_t addr;
     
     bool sendCommand(uint8_t* cmd, uint8_t len, const char* cmdName, uint16_t delayTime = 10) {
-
-        
         Wire.beginTransmission(addr);
         Wire.write(cmd, len);
         uint8_t error = Wire.endTransmission();
@@ -138,14 +132,8 @@ void setup() {
   ADC->CTRLB.bit.PRESCALER = ADC_CTRLB_PRESCALER_DIV32_Val;
   while (ADC->STATUS.bit.SYNCBUSY == 1);
 
-
 #endif
   Serial.begin(115200);
-
-
-  ///////////////////
-
-
 
   Serial.print("Connecting to Wi-Fi...");
     WiFi.begin(ssid, pass);
@@ -154,8 +142,7 @@ void setup() {
       Serial.print(".");
     }
 
-
-      // Print network data once connected
+    // Print network data once connected
     Serial.println("\nConnected to Wi-Fi!");
     printWifiData();
     printCurrentNet();
@@ -232,13 +219,9 @@ void setupWifi() {
 unsigned long periodic_print_1hz_ts = 0;
 
 void loop() {
-  
-  
-  
   static unsigned long lastRead = 0;
     
-    if(millis() - lastRead >= 1) { ///////////////////////////////////////////////////////////////////////////////   send/1s, need to change from 1000 to 10 for 100hz
-        
+    if(millis() - lastRead >= 20) { ///////////////////////////////////////////////////////////////////////////////   send/1s, need to change from 1000 to 10 for 100hz
         
         // Serial.println("\n--- Reading Sensors ---");
 
@@ -277,40 +260,6 @@ void loop() {
         lastRead = millis();
     }
 
-//////////////////////////////////////////////////////////////////////////////////////
-        // Format the data into a single message string
-    String message = "Front: "+ String(dist1) + " Left: " + String(dist2) + " Back: " + String(dist3) + " Right: " + String(dist4);
-
-    // Send the formatted message over UDP
-    Udp.beginPacket(remoteIp, remotePort);  // Start a packet to the remote IP and port
-    Udp.print(message);  // Send the message
-    Udp.endPacket();  // End the UDP packet
-
-
-    String message2 = "Message sent over UDP"; //+ String(dist1) + " Left: " + String(dist2) + " Back: " + String(dist3) + " Right: " + String(dist4);
-    // Print to Serial Monitor to confirm sending
-    Serial.println( message2);
-
-    // Wait for a short interval before sending the next message
-    /////////////////////////////////////////////////////////////////////////////////////////////////////// send/1s, need to change from 1000 to 10 for 100hz
-
-
-//////////////////////////////////////////////////////////////////////////////////////
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-/////////
-  
   led.update();
   //  Serial.println(millis() - loop_time);
   //  loop_time = millis();
