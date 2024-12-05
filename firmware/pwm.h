@@ -70,8 +70,10 @@
 //  // PMUX[x]: here x = pin_no / 2
 //  // for more detail check link in top of file
 //  PORT->Group[PORTB].PMUX[11 >> 1].reg |= PORT_PMUX_PMUXO_F;
-#include <Arduino.h>
 
+#include <Arduino.h>
+#ifndef PWM_H
+#define PWM_H
 // valid pin: 5,6,9,10
 class PWM {
 private:
@@ -209,3 +211,5 @@ public:
       ; // Wait for synchronization
   }
 };
+
+#endif
